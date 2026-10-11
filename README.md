@@ -47,3 +47,18 @@ The Jan 15 issue remains valued at ₹4,000 because it consumes 80 L from openin
 ## Production considerations
 
 A real ERPNext implementation must integrate with Stock Ledger Entry replay/reposting, source vouchers, warehouse/item dimensions, posting-time ordering, cancellation and amendment semantics, stock queues, negative-stock rules, manufacturing/repack dependencies, precision/rounding, accounting ledger updates, transaction boundaries, locking, and retry/resume behaviour. Do not replace ERPNext's stock ledger code with this demo.
+## Problems with Running Balances in Stock Ledger Entries
+
+If every Stock Ledger Entry stores a running balance, editing an earlier transaction can make later balances incorrect.
+
+- **Stale balances:** Subsequent entries may continue showing quantities and values calculated using the old purchase rate.
+- **Incorrect FIFO valuation:** Later stock issues may consume incorrect cost layers if affected entries are not recalculated.
+- **Dependency issues:** A changed Milk consumption cost can affect the valuation of manufactured Milk Powder and its later delivery.
+- **Data inconsistency:** Stock Ledger Entries and accounting records may no longer agree if only some transactions are updated.
+- **Performance and concurrency:** Recalculating many entries can be expensive, and simultaneous stock transactions can cause conflicts if reposting is not coordinated.
+
+### Proposed Approach
+
+Replay affected stock transactions in chronological order from a safe point before the edited transaction. Recalculate FIFO layers, quantities, and values, then propagate changes to dependent manufacturing and stock issues. Update related accounting entries consistently, using appropriate transaction controls and error handling.
+
+This repository demonstrates the replay concept in a simplified Python model; it does not implement ERPNext's production reposting mechanism.
